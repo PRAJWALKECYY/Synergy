@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hyderabad Trip Budget</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
   :root {
     --bg: #f5f0e8;
@@ -256,7 +259,7 @@
     <span class="tag tag-estimate">estimate</span> = your guess &nbsp;·&nbsp;
     <span class="tag tag-inr">INR</span> = Indian Rupees &nbsp;·&nbsp;
     <span class="tag tag-added">added</span> = recommended &nbsp;·&nbsp;
-    Changes are saved automatically in your browser.
+    Changes sync live across all devices.
   </div>
 </div>
 
@@ -339,38 +342,60 @@ const DEFAULT_DATA = [
   }
 ];
 
-// ─── LocalStorage ────────────────────────────────────────────────
-const STORAGE_KEY = 'hyderabad_budget_v3';
+// ─── Firebase Setup ──────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA3kRSofo6KHZfoOKfLabwitIEQVA_j0Bc",
+  authDomain: "tripplanner-daed3.firebaseapp.com",
+  databaseURL: "https://tripplanner-daed3-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tripplanner-daed3",
+  storageBucket: "tripplanner-daed3.firebasestorage.app",
+  messagingSenderId: "772425115400",
+  appId: "1:772425115400:web:fc4526d98bf567d896eebd"
+};
 
-function loadData() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  return JSON.parse(JSON.stringify(DEFAULT_DATA));
-}
+const DB_PATH = 'hyderabad_budget_v3';
 
-function saveData() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-    setSaveStatus(true);
-  } catch(e) {}
-}
+// Load Firebase SDKs
+const firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+const budgetRef = db.ref(DB_PATH);
 
-function setSaveStatus(saved) {
+function setSaveStatus(saved, msg) {
   const dot = document.getElementById('save-dot');
   const txt = document.getElementById('save-text');
   if (saved) {
     dot.classList.remove('dirty');
-    txt.textContent = 'All changes saved automatically';
+    txt.textContent = msg || 'Synced across all devices ✓';
   } else {
     dot.classList.add('dirty');
-    txt.textContent = 'Saving...';
+    txt.textContent = msg || 'Saving...';
   }
 }
 
-let appData = loadData();
+let appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let saveTimer = null;
+let isFirstLoad = true;
+
+// ─── Listen for real-time changes from Firebase ──────────────────
+budgetRef.on('value', (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    appData = data;
+  } else {
+    // No data in Firebase yet — push defaults
+    appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    budgetRef.set(appData);
+  }
+  render();
+  setSaveStatus(true);
+  isFirstLoad = false;
+});
+
+function saveData() {
+  budgetRef.set(appData)
+    .then(() => setSaveStatus(true))
+    .catch(() => setSaveStatus(true, '⚠ Save failed — check connection'));
+}
 
 function scheduleSave() {
   setSaveStatus(false);
@@ -638,16 +663,16 @@ function recalc() {
 
 // ─── Reset ───────────────────────────────────────────────────────
 function confirmReset() {
-  if (confirm('Reset everything back to the original budget? Your changes will be lost.')) {
-    localStorage.removeItem(STORAGE_KEY);
+  if (confirm('Reset everything back to the original budget? This will reset for ALL devices.')) {
     appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    budgetRef.set(appData)
+      .then(() => setSaveStatus(true, 'Reset to defaults ✓'));
     render();
-    setSaveStatus(true);
   }
 }
 
 // ─── Init ────────────────────────────────────────────────────────
-render();
+// Render is triggered automatically by Firebase real-time listener above
 </script>
 </body>
 </html>
