@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hyderabad Trip Budget</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #fffdf8;
+    --border: #d4c9b0;
+    --border-light: #e8e0cc;
+    --ink: #1a1610;
+    --ink-2: #5a5040;
+    --ink-3: #9a8f7a;
+    --accent: #c84b2f;
+    --accent-light: #f9ede9;
+    --green: #2a6b3c;
+    --green-light: #e8f4ec;
+    --amber: #b87020;
+    --amber-light: #fdf3e3;
+    --inr: #8b5e3c;
+    --inr-light: #f5ece4;
+    --danger: #c84b2f;
+    --danger-light: #fdf0ee;
+    --shadow: 0 2px 12px rgba(26,22,16,0.08);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .page { max-width: 820px; margin: 0 auto; }
+
+  /* Header */
+  header { margin-bottom: 24px; }
+  .trip-label { font-family: 'Fraunces', serif; font-style: italic; font-weight: 300; font-size: 13px; color: var(--ink-3); letter-spacing: 0.04em; margin-bottom: 6px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 28px; color: var(--ink); line-height: 1.1; }
+  h1 span { color: var(--accent); }
+  .route { font-size: 11px; color: var(--ink-3); margin-top: 6px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* Save indicator */
+  .save-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .save-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .save-dot.dirty { background: var(--amber); }
+  .save-text { font-size: 11px; color: var(--ink-3); }
+  .reset-btn { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--ink-3); cursor: pointer; }
+  .reset-btn:hover { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+
+  /* Summary cards */
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .sum-card { background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .sum-card.total { background: var(--ink); border-color: var(--ink); }
+  .sum-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 6px; }
+  .sum-card.total .sum-label { color: rgba(255,255,255,0.45); }
+  .sum-val { font-size: 17px; font-weight: 500; color: var(--ink); }
+  .sum-card.total .sum-val { color: #fff; font-size: 19px; }
+  .sum-sub { font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+  .sum-card.total .sum-sub { color: rgba(255,255,255,0.35); }
+
+  /* INR exchange highlight */
+  .exchange-banner {
+    background: var(--inr-light);
+    border: 1px solid #d4a882;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .exchange-icon { font-size: 20px; }
+  .exchange-text { font-size: 12px; color: var(--inr); line-height: 1.5; }
+  .exchange-text strong { font-size: 15px; display: block; margin-bottom: 2px; }
+
+  /* Section */
+  .section { background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .section-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--bg); border-bottom: 1px solid var(--border-light); cursor: pointer; user-select: none; }
+  .section-icon { font-size: 16px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface); border: 1px solid var(--border-light); flex-shrink: 0; }
+  .section-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; color: var(--ink); flex: 1; }
+  .section-total { font-size: 13px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .chevron { font-size: 11px; color: var(--ink-3); transition: transform 0.2s; flex-shrink: 0; }
+  .section.collapsed .chevron { transform: rotate(-90deg); }
+  .section.collapsed .section-body { display: none; }
+
+  /* Table */
+  .section-body { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); padding: 7px 14px; text-align: left; border-bottom: 1px solid var(--border-light); background: #f8f4ec; white-space: nowrap; }
+  thead th.right { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border-light); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #faf7f0; }
+  td { padding: 9px 14px; font-size: 12px; color: var(--ink); vertical-align: middle; }
+  td.desc .main { font-size: 13px; font-weight: 500; }
+  td.desc .sub { font-size: 10px; color: var(--ink-3); margin-top: 2px; line-height: 1.4; }
+  td.right { text-align: right; }
+
+  /* Tags */
+  .tag { display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.04em; text-transform: uppercase; margin-left: 4px; vertical-align: middle; }
+  .tag-fixed { background: var(--border-light); color: var(--ink-3); }
+  .tag-inr { background: var(--inr-light); color: var(--inr); }
+  .tag-estimate { background: var(--amber-light); color: var(--amber); }
+  .tag-added { background: var(--green-light); color: var(--green); }
+
+  /* Inputs */
+  .edit-wrap { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+  .curr-sym { font-size: 11px; color: var(--ink-3); flex-shrink: 0; }
+  input[type=number] {
+    font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500;
+    width: 92px; text-align: right; padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -moz-appearance: textfield;
+  }
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type=number]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,75,47,0.1); }
+  input.desc-input {
+    font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+    width: 100%; padding: 4px 6px;
+    border: 1px solid transparent; border-radius: 5px;
+    background: transparent; color: var(--ink);
+  }
+  input.desc-input:focus { outline: none; border-color: var(--accent); background: var(--bg); }
+  input.sub-input {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    width: 100%; padding: 2px 6px;
+    border: 1px solid transparent; border-radius: 4px;
+    background: transparent; color: var(--ink-3);
+  }
+  input.sub-input:focus { outline: none; border-color: var(--border); background: var(--bg); }
+  .inr-equiv { font-size: 10px; color: var(--ink-3); text-align: right; margin-top: 2px; }
+
+  /* Currency select */
+  select.curr-select {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    padding: 4px 6px; border: 1px solid var(--border);
+    border-radius: 5px; background: var(--bg); color: var(--ink);
+    cursor: pointer;
+  }
+  select.curr-select:focus { outline: none; border-color: var(--accent); }
+
+  /* Delete button */
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--ink-3); font-size: 15px; padding: 2px 4px; border-radius: 4px; line-height: 1; transition: color 0.15s, background 0.15s; }
+  .del-btn:hover { color: var(--danger); background: var(--danger-light); }
+
+  /* Add row */
+  .add-row-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--ink-3); background: none; border: none;
+    cursor: pointer; padding: 9px 14px; width: 100%;
+    border-top: 1px dashed var(--border-light);
+    transition: color 0.15s, background 0.15s;
+  }
+  .add-row-btn:hover { color: var(--green); background: var(--green-light); }
+
+  /* Subtotal */
+  tfoot tr td { background: var(--bg); font-weight: 500; border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-2); padding: 8px 14px; }
+
+  /* Grand total */
+  .grand-section { background: var(--ink); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-top: 6px; box-shadow: var(--shadow); }
+  .grand-left { font-family: 'Fraunces', serif; font-style: italic; font-weight: 300; font-size: 15px; color: rgba(255,255,255,0.55); }
+  .grand-right { text-align: right; }
+  .grand-nrs { font-size: 28px; font-weight: 500; color: #fff; }
+  .grand-inr { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+  .per-person { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .per-person-chip { font-size: 11px; color: var(--ink-3); background: var(--surface); border: 1px solid var(--border-light); border-radius: 6px; padding: 5px 12px; }
+  .per-person-chip span { font-weight: 500; color: var(--ink); }
+
+  /* Footer */
+  .footer-note { margin-top: 20px; font-size: 10px; color: var(--ink-3); line-height: 1.8; text-align: center; }
+
+  /* Add section */
+  .add-section-wrap { margin-top: 6px; margin-bottom: 14px; }
+  .add-section-btn { display: flex; align-items: center; gap: 8px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink-3); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); cursor: pointer; padding: 12px 16px; width: 100%; transition: color 0.15s, border-color 0.15s; }
+  .add-section-btn:hover { color: var(--green); border-color: var(--green); }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(26,22,16,0.4); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 20px; max-width: 360px; width: 100%; box-shadow: 0 8px 32px rgba(26,22,16,0.2); }
+  .modal h3 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 16px; margin-bottom: 14px; }
+  .modal label { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px; margin-top: 12px; }
+  .modal label:first-of-type { margin-top: 0; }
+  .modal input[type=text], .modal input[type=number] { width: 100%; padding: 8px 10px; font-family: 'DM Mono', monospace; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .modal input:focus { outline: none; border-color: var(--accent); }
+  .modal select { width: 100%; padding: 8px 10px; font-family: 'DM Mono', monospace; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+  .btn-confirm { flex: 1; font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px; border-radius: 6px; border: none; background: var(--ink); color: #fff; cursor: pointer; }
+  .btn-confirm:hover { background: var(--accent); }
+  .btn-cancel { font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--ink-3); cursor: pointer; }
+
+  @media (max-width: 500px) {
+    .summary { grid-template-columns: 1fr 1fr; }
+    .sum-card.total { grid-column: 1 / -1; }
+    h1 { font-size: 22px; }
+    .grand-nrs { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="trip-label">trip budget planner</div>
+    <h1>Pokhara → <span>Hyderabad</span></h1>
+    <div class="route">Pokhara · Sunauli · Gorakhpur · Hyderabad &nbsp;·&nbsp; 7 nights &nbsp;·&nbsp; 2 people</div>
+  </header>
+
+  <div class="save-bar">
+    <div class="save-dot" id="save-dot"></div>
+    <span class="save-text" id="save-text">All changes saved automatically</span>
+    <button class="reset-btn" onclick="confirmReset()">↺ Reset to default</button>
+  </div>
+
+  <div class="summary">
+    <div class="sum-card"><div class="sum-label">Transport</div><div class="sum-val" id="sum-transport">—</div><div class="sum-sub">All legs, both ways</div></div>
+    <div class="sum-card"><div class="sum-label">Stay & Daily</div><div class="sum-val" id="sum-stay">—</div><div class="sum-sub">Hotel, food, local</div></div>
+    <div class="sum-card total"><div class="sum-label">Grand Total</div><div class="sum-val" id="sum-grand">—</div><div class="sum-sub">Both of you, NPR</div></div>
+  </div>
+
+  <div class="exchange-banner">
+    <div class="exchange-icon">💱</div>
+    <div class="exchange-text">
+      <strong id="exchange-amount">Exchange ₹ — INR (≈ ₨ — NPR)</strong>
+      Exchange at authorised counter in Pokhara before leaving — better rates than Sunauli border.
+    </div>
+  </div>
+
+  <div id="sections-container"></div>
+
+  <div class="add-section-wrap">
+    <button class="add-section-btn" onclick="openAddSection()">＋ Add a new category</button>
+  </div>
+
+  <div class="grand-section">
+    <div class="grand-left">Total for both of you</div>
+    <div class="grand-right">
+      <div class="grand-nrs" id="grand-nrs">₨ —</div>
+      <div class="grand-inr" id="grand-inr">≈ ₹ — INR</div>
+    </div>
+  </div>
+  <div class="per-person">
+    <div class="per-person-chip">Per person: <span id="per-person">₨ —</span></div>
+  </div>
+
+  <div class="footer-note">
+    All INR amounts auto-converted at 1 INR = 1.6 NPR &nbsp;·&nbsp;
+    <span class="tag tag-estimate">estimate</span> = your guess &nbsp;·&nbsp;
+    <span class="tag tag-inr">INR</span> = Indian Rupees &nbsp;·&nbsp;
+    <span class="tag tag-added">added</span> = recommended &nbsp;·&nbsp;
+    Changes are saved automatically in your browser.
+  </div>
+</div>
+
+<!-- Add Row Modal -->
+<div class="modal-bg" id="modal-add-row">
+  <div class="modal">
+    <h3>Add expense</h3>
+    <label>Description</label>
+    <input type="text" id="new-desc" placeholder="e.g. Entrance fee">
+    <label>Note (optional)</label>
+    <input type="text" id="new-sub" placeholder="e.g. Per person × 2">
+    <label>Currency</label>
+    <select id="new-currency">
+      <option value="NPR">₨ NPR</option>
+      <option value="INR">₹ INR</option>
+    </select>
+    <label>Amount</label>
+    <input type="number" id="new-amount" placeholder="0" style="text-align:left">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-add-row')">Cancel</button>
+      <button class="btn-confirm" onclick="confirmAddRow()">Add expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Section Modal -->
+<div class="modal-bg" id="modal-add-section">
+  <div class="modal">
+    <h3>Add category</h3>
+    <label>Category name</label>
+    <input type="text" id="new-section-name" placeholder="e.g. Entertainment">
+    <label>Icon (emoji)</label>
+    <input type="text" id="new-section-icon" placeholder="🎭" maxlength="2">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-add-section')">Cancel</button>
+      <button class="btn-confirm" onclick="confirmAddSection()">Add category</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const INR_NPR = 1.6;
+let addRowTargetSection = null;
+
+// ─── Default data ────────────────────────────────────────────────
+const DEFAULT_DATA = [
+  {
+    id: 'transport', name: 'Transport', icon: '🚌', collapsed: false,
+    rows: [
+      { id: 'r1', desc: 'Pokhara ↔ Sunauli bus', sub: 'Both ways · ~7–8 hrs each way · 2 people', tag: 'fixed', currency: 'NPR', amount: 6220 },
+      { id: 'r2', desc: 'Sunauli ↔ Gorakhpur Cab', sub: 'Both ways total · confirmed 5,000 INR', tag: 'inr', currency: 'INR', amount: 5300 },
+      { id: 'r4', desc: 'Gorakhpur ↔ Hyderabad flights', sub: 'Both passengers, both legs', tag: 'fixed', currency: 'NPR', amount: 46000 },
+      { id: 'r5', desc: 'Hyderabad airport ↔ hotel', sub: 'Cab both ways · ~30km from city', tag: 'estimate', currency: 'NPR', amount: 3200 },
+      { id: 'r16', desc: 'Gorakhpur — one night stay', sub: '1 room', tag: 'estimate', currency: 'NPR', amount: 9200 },
+    ]
+  },
+  {
+    id: 'stay', name: 'Stay & Daily', icon: '🏨', collapsed: false,
+    rows: [
+      { id: 'r6', desc: 'Hotel — 6 nights', sub: 'For 2 people · confirmed', tag: 'fixed', currency: 'NPR', amount: 28000 },
+      { id: 'r7', desc: 'Food — 7 days', sub: 'Both people · your estimate', tag: 'estimate', currency: 'NPR', amount: 10000 },
+      { id: 'r8', desc: 'Local travel + entry passes', sub: 'Ola/Uber, Golconda Fort, Salar Jung etc. · 7 days', tag: 'estimate', currency: 'NPR', amount: 10000 },
+      { id: 'r9', desc: 'Bottled water — 7 days', sub: 'Don\'t drink tap water · ~2×2L per day for 2 people', tag: 'added', currency: 'NPR', amount: 800 },
+    ]
+  },
+  {
+    id: 'sim', name: 'SIM Cards', icon: '📱', collapsed: false,
+    rows: [
+      { id: 'r10', desc: 'Your SIM', sub: 'Redmi Note 14 5G · unlimited 5G · 28 days', tag: 'inr', currency: 'INR', amount: 500 },
+      { id: 'r11', desc: 'Sister\'s SIM', sub: '4G phone · unlimited pool · no daily cap · 28 days', tag: 'inr', currency: 'INR', amount: 500 },
+    ]
+  },
+  {
+    id: 'extras', name: 'Safety & Extras', icon: '🛡️', collapsed: false,
+    rows: [
+      { id: 'r13', desc: 'Medicine kit', sub: 'ORS, paracetamol, antidiarrhoeals, band-aids', tag: 'added', currency: 'NPR', amount: 600 },
+      { id: 'r14', desc: 'Shopping & souvenirs', sub: 'Pearls, bangles from Laad Bazaar etc.', tag: 'estimate', currency: 'INR', amount: 10000 },
+      { id: 'r15', desc: 'Emergency buffer', sub: 'Delays, missed transport, unexpected costs', tag: 'added', currency: 'NPR', amount: 10000 },
+    ]
+  }
+];
+
+// ─── LocalStorage ────────────────────────────────────────────────
+const STORAGE_KEY = 'hyderabad_budget_v3';
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    setSaveStatus(true);
+  } catch(e) {}
+}
+
+function setSaveStatus(saved) {
+  const dot = document.getElementById('save-dot');
+  const txt = document.getElementById('save-text');
+  if (saved) {
+    dot.classList.remove('dirty');
+    txt.textContent = 'All changes saved automatically';
+  } else {
+    dot.classList.add('dirty');
+    txt.textContent = 'Saving...';
+  }
+}
+
+let appData = loadData();
+let saveTimer = null;
+
+function scheduleSave() {
+  setSaveStatus(false);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveData, 600);
+}
+
+// ─── Unique ID ───────────────────────────────────────────────────
+function uid() { return 'r' + Date.now() + Math.random().toString(36).slice(2,5); }
+
+// ─── Render ──────────────────────────────────────────────────────
+function render() {
+  const container = document.getElementById('sections-container');
+  container.innerHTML = '';
+
+  appData.forEach(section => {
+    const secEl = document.createElement('div');
+    secEl.className = 'section' + (section.collapsed ? ' collapsed' : '');
+    secEl.id = 'sec-' + section.id;
+
+    secEl.innerHTML = `
+      <div class="section-head" onclick="toggleSection('${section.id}')">
+        <div class="section-icon">${section.icon}</div>
+        <div class="section-name">${section.name}</div>
+        <div class="section-total" id="st-${section.id}">—</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:42%">Item</th>
+              <th style="width:14%">Currency</th>
+              <th class="right" style="width:32%">Amount</th>
+              <th style="width:8%"></th>
+            </tr>
+          </thead>
+          <tbody id="tbody-${section.id}"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">${section.name} subtotal</td>
+              <td class="right" id="sub-${section.id}">—</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        <button class="add-row-btn" onclick="openAddRow('${section.id}')">＋ Add expense to ${section.name}</button>
+      </div>
+    `;
+
+    container.appendChild(secEl);
+
+    const tbody = document.getElementById('tbody-' + section.id);
+    section.rows.forEach(row => {
+      tbody.appendChild(buildRow(row, section.id));
+    });
+  });
+
+  recalc();
+}
+
+function buildRow(row, sectionId) {
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + row.id;
+
+  const tagMap = { fixed: 'tag-fixed', inr: 'tag-inr', estimate: 'tag-estimate', added: 'tag-added' };
+  const tagLabel = { fixed: 'fixed', inr: 'INR', estimate: 'estimate', added: 'added' };
+  const tagHtml = row.tag ? `<span class="tag ${tagMap[row.tag]}">${tagLabel[row.tag]}</span>` : '';
+
+  const isINR = row.currency === 'INR';
+  const sym = isINR ? '₹' : '₨';
+  const equiv = isINR ? `<div class="inr-equiv" id="eq-${row.id}">= ₨ ${Math.round(row.amount * INR_NPR).toLocaleString('en-IN')}</div>` : '';
+
+  tr.innerHTML = `
+    <td class="desc">
+      <input class="desc-input" type="text" value="${escHtml(row.desc)}" onchange="updateRowDesc('${sectionId}','${row.id}','desc',this.value)" title="Click to edit">
+      <input class="sub-input" type="text" value="${escHtml(row.sub || '')}" onchange="updateRowDesc('${sectionId}','${row.id}','sub',this.value)" placeholder="Add a note...">
+      ${tagHtml}
+    </td>
+    <td>
+      <select class="curr-select" onchange="updateRowCurrency('${sectionId}','${row.id}',this.value)">
+        <option value="NPR" ${!isINR?'selected':''}>₨ NPR</option>
+        <option value="INR" ${isINR?'selected':''}>₹ INR</option>
+      </select>
+    </td>
+    <td class="right">
+      <div class="edit-wrap">
+        <span class="curr-sym">${sym}</span>
+        <input type="number" value="${row.amount}" oninput="updateRowAmount('${sectionId}','${row.id}',this.value)">
+      </div>
+      ${equiv}
+    </td>
+    <td>
+      <button class="del-btn" onclick="deleteRow('${sectionId}','${row.id}')" title="Remove this expense">✕</button>
+    </td>
+  `;
+  return tr;
+}
+
+function escHtml(str) {
+  return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Mutations ───────────────────────────────────────────────────
+function findSection(secId) { return appData.find(s => s.id === secId); }
+function findRow(secId, rowId) { const s = findSection(secId); return s ? s.rows.find(r => r.id === rowId) : null; }
+
+function updateRowDesc(secId, rowId, field, val) {
+  const row = findRow(secId, rowId);
+  if (row) { row[field] = val; scheduleSave(); }
+}
+
+function updateRowAmount(secId, rowId, val) {
+  const row = findRow(secId, rowId);
+  if (!row) return;
+  row.amount = parseFloat(val) || 0;
+  // update equiv display
+  if (row.currency === 'INR') {
+    const eq = document.getElementById('eq-' + rowId);
+    if (eq) eq.textContent = '= ₨ ' + Math.round(row.amount * INR_NPR).toLocaleString('en-IN');
+  }
+  recalc();
+  scheduleSave();
+}
+
+function updateRowCurrency(secId, rowId, currency) {
+  const row = findRow(secId, rowId);
+  if (!row) return;
+  row.currency = currency;
+  // re-render just this row
+  const tr = document.getElementById('row-' + rowId);
+  if (tr) {
+    const newTr = buildRow(row, secId);
+    tr.replaceWith(newTr);
+  }
+  recalc();
+  scheduleSave();
+}
+
+function deleteRow(secId, rowId) {
+  const sec = findSection(secId);
+  if (!sec) return;
+  sec.rows = sec.rows.filter(r => r.id !== rowId);
+  const tr = document.getElementById('row-' + rowId);
+  if (tr) tr.remove();
+  recalc();
+  scheduleSave();
+}
+
+function toggleSection(secId) {
+  const sec = findSection(secId);
+  if (sec) sec.collapsed = !sec.collapsed;
+  const el = document.getElementById('sec-' + secId);
+  if (el) el.classList.toggle('collapsed');
+  scheduleSave();
+}
+
+// ─── Add Row Modal ───────────────────────────────────────────────
+function openAddRow(secId) {
+  addRowTargetSection = secId;
+  document.getElementById('new-desc').value = '';
+  document.getElementById('new-sub').value = '';
+  document.getElementById('new-currency').value = 'NPR';
+  document.getElementById('new-amount').value = '';
+  document.getElementById('modal-add-row').classList.add('open');
+  setTimeout(() => document.getElementById('new-desc').focus(), 100);
+}
+
+function confirmAddRow() {
+  const desc = document.getElementById('new-desc').value.trim();
+  if (!desc) { document.getElementById('new-desc').focus(); return; }
+  const row = {
+    id: uid(),
+    desc,
+    sub: document.getElementById('new-sub').value.trim(),
+    tag: 'estimate',
+    currency: document.getElementById('new-currency').value,
+    amount: parseFloat(document.getElementById('new-amount').value) || 0
+  };
+  const sec = findSection(addRowTargetSection);
+  if (sec) {
+    sec.rows.push(row);
+    const tbody = document.getElementById('tbody-' + addRowTargetSection);
+    if (tbody) tbody.appendChild(buildRow(row, addRowTargetSection));
+    recalc();
+    scheduleSave();
+  }
+  closeModal('modal-add-row');
+}
+
+// ─── Add Section Modal ───────────────────────────────────────────
+function openAddSection() {
+  document.getElementById('new-section-name').value = '';
+  document.getElementById('new-section-icon').value = '';
+  document.getElementById('modal-add-section').classList.add('open');
+  setTimeout(() => document.getElementById('new-section-name').focus(), 100);
+}
+
+function confirmAddSection() {
+  const name = document.getElementById('new-section-name').value.trim();
+  if (!name) { document.getElementById('new-section-name').focus(); return; }
+  const icon = document.getElementById('new-section-icon').value.trim() || '📌';
+  const sec = { id: uid(), name, icon, collapsed: false, rows: [] };
+  appData.push(sec);
+  closeModal('modal-add-section');
+  render();
+  scheduleSave();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modal on bg click
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); });
+});
+
+// Enter key in modals
+document.getElementById('modal-add-row').addEventListener('keydown', e => { if (e.key === 'Enter') confirmAddRow(); });
+document.getElementById('modal-add-section').addEventListener('keydown', e => { if (e.key === 'Enter') confirmAddSection(); });
+
+// ─── Recalc ──────────────────────────────────────────────────────
+function rowToNPR(row) {
+  return row.currency === 'INR' ? row.amount * INR_NPR : row.amount;
+}
+
+function sectionTotal(sec) {
+  return sec.rows.reduce((sum, r) => sum + rowToNPR(r), 0);
+}
+
+function fmt(n) { return '₨ ' + Math.round(n).toLocaleString('en-IN'); }
+
+function recalc() {
+  let grand = 0;
+  let transportTotal = 0;
+  let stayTotal = 0;
+  let totalINR = 0;
+
+  appData.forEach(sec => {
+    const total = sectionTotal(sec);
+    grand += total;
+    if (sec.id === 'transport') transportTotal = total;
+    if (sec.id === 'stay') stayTotal = total;
+
+    const stEl = document.getElementById('st-' + sec.id);
+    const subEl = document.getElementById('sub-' + sec.id);
+    if (stEl) stEl.textContent = fmt(total);
+    if (subEl) subEl.textContent = fmt(total);
+  });
+
+  // Suggested exchange range
+  const exchangeINRLow = 50000;
+  const exchangeINRHigh = 60000;
+  const exchangeNPRLow = Math.round(exchangeINRLow * INR_NPR);
+  const exchangeNPRHigh = Math.round(exchangeINRHigh * INR_NPR);
+
+  document.getElementById('sum-transport').textContent = fmt(transportTotal);
+  document.getElementById('sum-stay').textContent = fmt(stayTotal);
+  document.getElementById('sum-grand').textContent = fmt(grand);
+  document.getElementById('grand-nrs').textContent = fmt(grand);
+  document.getElementById('grand-inr').textContent = '≈ ₹ ' + Math.round(grand / INR_NPR).toLocaleString('en-IN') + ' INR';
+  document.getElementById('per-person').textContent = fmt(grand / 2);
+  document.getElementById('exchange-amount').textContent =
+    'Exchange ₹' + exchangeINRLow.toLocaleString('en-IN') + '–' + exchangeINRHigh.toLocaleString('en-IN') + ' INR (≈ ₨' + exchangeNPRLow.toLocaleString('en-IN') + '–' + exchangeNPRHigh.toLocaleString('en-IN') + ' NPR)';
+}
+
+// ─── Reset ───────────────────────────────────────────────────────
+function confirmReset() {
+  if (confirm('Reset everything back to the original budget? Your changes will be lost.')) {
+    localStorage.removeItem(STORAGE_KEY);
+    appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    render();
+    setSaveStatus(true);
+  }
+}
+
+// ─── Init ────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
